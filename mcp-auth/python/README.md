@@ -2,6 +2,8 @@
 
 This project demonstrates how to create a secured MCP (Model Context Protocol) server in Python with FastMCP framework, using Asgardeo as the OAuth2/OIDC provider.
 
+**✨ Simplified Configuration: Only 3 environment variables required!**
+
 ## Prerequisites
 
 - Python 3.12 or higher
@@ -12,8 +14,7 @@ This project demonstrates how to create a secured MCP (Model Context Protocol) s
 
 ```
 ├── main.py              # Main FastMCP server application
-├── jwt_validator.py     # JWT validation module
-├── .env                 # Environment variables configuration
+├── .env                 # Environment variables configuration (3 required!)
 ├── README.md           # This file
 └── requirements.txt    # Python dependencies
 ```
@@ -25,7 +26,7 @@ This project demonstrates how to create a secured MCP (Model Context Protocol) s
 2. **Create a virtual environment (recommended)**
    ```bash
    python -m venv .venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+   .venv\Scripts\activate
    ```
 
 3. **Install required dependencies**
@@ -38,7 +39,7 @@ This project demonstrates how to create a secured MCP (Model Context Protocol) s
    Create a `.env` file in the project root directory with your Asgardeo configuration:
    
    ```bash
-   # Asgardeo OAuth2 Configuration
+   # Only 3 environment variables required!
    AUTH_ISSUER=https://api.asgardeo.io/t/<your-tenant>/oauth2/token
    CLIENT_ID=<your-client-id>
    JWKS_URL=https://api.asgardeo.io/t/<your-tenant>/oauth2/jwks
@@ -46,7 +47,6 @@ This project demonstrates how to create a secured MCP (Model Context Protocol) s
    
    **Example with actual values:**
    ```bash
-   # Asgardeo OAuth2 Configuration
    AUTH_ISSUER=https://api.asgardeo.io/t/mycompany/oauth2/token
    CLIENT_ID=abc123xyz789_client_id_from_asgardeo
    JWKS_URL=https://api.asgardeo.io/t/mycompany/oauth2/jwks
@@ -57,7 +57,7 @@ This project demonstrates how to create a secured MCP (Model Context Protocol) s
 ### 1. Create an Asgardeo Application
 
 1. Login to your Asgardeo account.
-2. Navigate to the Applications Tab and selct the **MCP Client Application** as shown in below image.
+2. Navigate to the Applications Tab and select the **MCP Client Application** as shown in below image.
 ![mcp-client-app-selection.png](images/mcp-client-app-selection.png)
 
 3. Add your application name and callback URL
@@ -70,8 +70,6 @@ Once the application is created get both the **Client ID** and **Tenant Name**:
 - **Tenant Name**: Your organization's tenant name (visible in the URL)
 
 ### 3. Configure the Application
-
-The application now uses environment variables for configuration. Make sure you have created the `.env` file as described in the Installation section above.
 
 Replace the placeholders in your `.env` file:
 - Replace `<your-tenant>` with your actual Asgardeo tenant name
@@ -90,6 +88,14 @@ Replace the placeholders in your `.env` file:
 
 2. **Server will start on**: `http://localhost:8000` using `streamable-http` transport
 
+## Available Tools
+
+The server provides the following tools:
+
+- **get_weather**: Get weather data (no authentication required)
+- **get_server_info**: Get server information (no authentication required)
+- **get_email**: Get authenticated user's email (requires 'email' scope)
+- **get_name**: Get authenticated user's name (requires 'profile' scope)
 
 ## Test with MCP Inspector
 
@@ -116,13 +122,3 @@ For more information on how to run MCP Inspector, refer to the [MCP Inspector do
    (Once you click on the connect button, it will redirect you to the Asgardeo login page, where you can login with your Asgardeo credentials.)
 ![mcp-server-connect.png](images/mcp-server-connect.png)
 6. Once connected, you can start testing the available get_weather tool by navigating the **Tools** tab in the MCP Inspector.
-
-## Available Tools
-
-### get_weather Tool
-
-- **Description**: Get weather data for a city
-- **Parameters**: 
-  - `city` (optional): City name (defaults to "London")
-- **Authentication**: Required (valid JWT token)
-- **Returns**: Weather information including temperature, condition, and humidity
