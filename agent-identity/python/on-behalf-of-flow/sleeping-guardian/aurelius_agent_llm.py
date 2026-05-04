@@ -262,16 +262,19 @@ Be concise and actionable in your responses."""),
         print(f"\n[Aurelius AI] 🚨 Market alert detected - invoking AI analysis via MCP tools")
         print(f"[Aurelius AI] 🔍 Triggering LLM with stock:read scope required for price fetch")
 
-        # Ask AI to use MCP tools to gather data and decide
+        # Ask AI to use MCP tools to gather data and decide.
+        # IMPORTANT: Tools must be called one at a time due to a bug in
+        # langchain-google-genai (<=2.0.8) where parallel tool calls produce
+        # an empty function_response.name, which the Gemini API rejects.
         analysis_prompt = f"""Market alert for {local_state['symbol']}!
 
-Please use your available tools to:
-1. Call get_market_price for {local_state['symbol']} to get the current verified price from the market server
-2. Call get_my_portfolio to check your available balance
+Please use your available tools ONE AT A TIME (do NOT call multiple tools in parallel):
+1. First, call get_market_price for {local_state['symbol']} to get the current verified price
+2. Then, call get_my_portfolio to check your available balance
 3. Analyse whether the price is below the threshold of ${self.price_threshold:.2f}
 4. If yes, recommend exactly how many shares to buy with the ${self.trade_amount:.2f} budget
 
-Use the tools first, then provide your recommendation."""
+IMPORTANT: Call each tool separately, one after another. Do not batch tool calls."""
 
         try:
             response = await self.agent_executor.ainvoke({
@@ -309,14 +312,8 @@ Use the tools first, then provide your recommendation."""
             else:
                 print(f"[Aurelius AI] ⚠️  Tool error: {e}")
         except Exception as e:
-            error_msg = str(e)
-            # Gemini API formatting error - proceed with trade anyway
-            if "GenerateContentRequest" in error_msg or "function_response.name" in error_msg:
-                print(f"[Aurelius AI] ⚠️  Gemini API error, proceeding with trade")
-                shares = int(self.trade_amount / local_state['price'])
-                await self._execute_ai_trade(local_state['symbol'], shares)
-            else:
-                print(f"[Aurelius AI] ❌ Error: {e}")
+            print(f"[Aurelius AI] ⚠️  Error during AI analysis: {e}")
+            print(f"[Aurelius AI] Will retry on next monitoring cycle")
 
     async def _execute_ai_trade(self, symbol: str, shares: int):
         """Execute trade recommended by AI."""
@@ -324,7 +321,7 @@ Use the tools first, then provide your recommendation."""
 - Stock: {symbol}
 - Shares: {shares}
 
-Use the buy_stock tool to execute this trade."""
+You MUST call the buy_stock tool now. Do NOT check scopes or permissions yourself — just call the tool and let the server decide. Call tools one at a time."""
 
         try:
             response = await self.agent_executor.ainvoke({
@@ -338,6 +335,16 @@ Use the buy_stock tool to execute this trade."""
 
             output = response.get("output", "")
             print(f"[Aurelius AI] ✓ Trade result: {output}")
+
+            # Check if the LLM refused to call the tool or reported a scope error
+            scope_refusal_keywords = ["insufficient_scope", "stock:trade", "scope", "authorization", "permission"]
+            if any(kw in output.lower() for kw in scope_refusal_keywords) and "success" not in output.lower():
+                print(f"[Aurelius AI] 🔐 Trade blocked due to insufficient scope — triggering CIBA")
+                await self._handle_insufficient_scope(
+                    self.market_engine.get_current_state(),
+                    output
+                )
+                return
 
             # NOTE: MCP server maintains the authoritative portfolio state
             # We update local state for UI display purposes only
